@@ -1,0 +1,3 @@
+[submodule "lib/WAVS"]
+	path = lib/WAVS
+	url = git@github.com:Lay3rLabs/WAVS.git
