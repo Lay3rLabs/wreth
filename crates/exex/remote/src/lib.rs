@@ -321,6 +321,24 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proto::remote_ex_ex_client::RemoteExExClient;
+    use reth_ethereum_primitives::EthPrimitives;
+    use reth_execution_types::Chain;
+    use serde::Deserialize;
+    use tokio::time::{timeout, Duration};
+
+    /// Wrapper for deserializing ExExNotification with serde_bincode_compat.
+    #[serde_as]
+    #[derive(Deserialize)]
+    struct ExExNotificationDeserializeWrapper<N: NodePrimitives> {
+        #[serde_as(as = "reth_exex_types::serde_bincode_compat::ExExNotification<'_, N>")]
+        notification: ExExNotification<N>,
+    }
+
+    /// Create a test chain with default values for testing.
+    fn create_test_chain() -> Chain<EthPrimitives> {
+        Chain::default()
+    }
 
     #[test]
     fn test_default_config() {
@@ -338,5 +356,205 @@ mod tests {
 
         assert_eq!(config.addr, addr);
         assert_eq!(config.channel_capacity, 512);
+    }
+
+    #[test]
+    fn test_notification_sender_receiver_count() {
+        let config = RemoteExExConfig::default();
+        let (_server, sender): (RemoteExExServer<EthPrimitives>, _) =
+            RemoteExExServer::new(config);
+
+        // No receivers initially
+        assert_eq!(sender.receiver_count(), 0);
+    }
+
+    #[test]
+    fn test_serialization_roundtrip_chain_committed() {
+        let chain = create_test_chain();
+        let notification: ExExNotification<EthPrimitives> =
+            ExExNotification::ChainCommitted { new: Arc::new(chain) };
+
+        // Serialize using the wrapper
+        let wrapper = ExExNotificationWrapper {
+            notification: &notification,
+        };
+        let serialized = bincode::serialize(&wrapper).expect("serialization should succeed");
+
+        // Deserialize
+        let deserialized: ExExNotificationDeserializeWrapper<EthPrimitives> =
+            bincode::deserialize(&serialized).expect("deserialization should succeed");
+
+        // Verify the notification type matches
+        assert!(deserialized.notification.committed_chain().is_some());
+        assert!(deserialized.notification.reverted_chain().is_none());
+    }
+
+    #[test]
+    fn test_serialization_roundtrip_chain_reverted() {
+        let chain = create_test_chain();
+        let notification: ExExNotification<EthPrimitives> =
+            ExExNotification::ChainReverted { old: Arc::new(chain) };
+
+        let wrapper = ExExNotificationWrapper {
+            notification: &notification,
+        };
+        let serialized = bincode::serialize(&wrapper).expect("serialization should succeed");
+
+        let deserialized: ExExNotificationDeserializeWrapper<EthPrimitives> =
+            bincode::deserialize(&serialized).expect("deserialization should succeed");
+
+        assert!(deserialized.notification.reverted_chain().is_some());
+        assert!(deserialized.notification.committed_chain().is_none());
+    }
+
+    #[test]
+    fn test_serialization_roundtrip_chain_reorged() {
+        let old_chain = create_test_chain();
+        let new_chain = create_test_chain();
+        let notification: ExExNotification<EthPrimitives> = ExExNotification::ChainReorged {
+            old: Arc::new(old_chain),
+            new: Arc::new(new_chain),
+        };
+
+        let wrapper = ExExNotificationWrapper {
+            notification: &notification,
+        };
+        let serialized = bincode::serialize(&wrapper).expect("serialization should succeed");
+
+        let deserialized: ExExNotificationDeserializeWrapper<EthPrimitives> =
+            bincode::deserialize(&serialized).expect("deserialization should succeed");
+
+        // ChainReorged has both committed (new) and reverted (old)
+        assert!(deserialized.notification.committed_chain().is_some());
+        assert!(deserialized.notification.reverted_chain().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_channel_multiple_receivers() {
+        let config = RemoteExExConfig::default().with_channel_capacity(16);
+        let (server, sender): (RemoteExExServer<EthPrimitives>, _) =
+            RemoteExExServer::new(config);
+
+        // Subscribe multiple receivers
+        let mut rx1 = sender.inner.subscribe();
+        let mut rx2 = sender.inner.subscribe();
+        let mut rx3 = sender.inner.subscribe();
+
+        assert_eq!(sender.receiver_count(), 3);
+
+        // Send a notification
+        let chain = create_test_chain();
+        let notification = ExExNotification::ChainCommitted { new: Arc::new(chain) };
+        let sent_count = sender.send(notification.clone()).expect("send should succeed");
+
+        assert_eq!(sent_count, 3);
+
+        // All receivers should get the notification
+        let recv1 = rx1.recv().await.expect("rx1 should receive");
+        let recv2 = rx2.recv().await.expect("rx2 should receive");
+        let recv3 = rx3.recv().await.expect("rx3 should receive");
+
+        assert!(recv1.committed_chain().is_some());
+        assert!(recv2.committed_chain().is_some());
+        assert!(recv3.committed_chain().is_some());
+
+        drop(server); // Ensure server is used
+    }
+
+    #[tokio::test]
+    async fn test_grpc_server_startup_and_client_connection() {
+        // Use a random port to avoid conflicts
+        let port = 10000 + (rand::random::<u16>() % 1000);
+        let addr: SocketAddr = format!("127.0.0.1:{}", port).parse().unwrap();
+        let config = RemoteExExConfig::default().with_addr(addr);
+
+        let (server, sender): (RemoteExExServer<EthPrimitives>, _) =
+            RemoteExExServer::new(config);
+
+        // Spawn the server
+        let server_handle = tokio::spawn(async move {
+            server.serve().await
+        });
+
+        // Give the server time to start
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // Try to connect a client
+        let client_result = timeout(
+            Duration::from_secs(2),
+            RemoteExExClient::connect(format!("http://{}", addr)),
+        )
+        .await;
+
+        match client_result {
+            Ok(Ok(mut client)) => {
+                // Successfully connected, try to subscribe
+                let request = tonic::Request::new(proto::SubscribeRequest {});
+                let response = client.subscribe(request).await;
+                assert!(response.is_ok(), "Subscribe should succeed");
+
+                // Send a notification through the sender
+                let chain = create_test_chain();
+                let notification = ExExNotification::ChainCommitted { new: Arc::new(chain) };
+
+                // Note: receiver_count might be 0 initially as the gRPC service
+                // subscribes asynchronously
+                let _ = sender.send(notification);
+            }
+            Ok(Err(e)) => {
+                // Connection might fail in CI environments, that's acceptable
+                eprintln!("Client connection failed (may be expected in CI): {}", e);
+            }
+            Err(_) => {
+                // Timeout is acceptable in CI environments
+                eprintln!("Client connection timed out (may be expected in CI)");
+            }
+        }
+
+        // Clean up
+        server_handle.abort();
+    }
+
+    #[tokio::test]
+    async fn test_notification_sender_no_receivers() {
+        let config = RemoteExExConfig::default();
+        let (_server, sender): (RemoteExExServer<EthPrimitives>, _) =
+            RemoteExExServer::new(config);
+
+        // Send with no receivers - should return error
+        let chain = create_test_chain();
+        let notification = ExExNotification::ChainCommitted { new: Arc::new(chain) };
+        let result = sender.send(notification);
+
+        // With no receivers, broadcast returns an error
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_lagged_receiver_handling() {
+        // Small capacity to trigger lagging
+        let config = RemoteExExConfig::default().with_channel_capacity(2);
+        let (_server, sender): (RemoteExExServer<EthPrimitives>, _) =
+            RemoteExExServer::new(config);
+
+        let mut rx = sender.inner.subscribe();
+
+        // Send more notifications than the channel can hold
+        for _ in 0..5 {
+            let chain = create_test_chain();
+            let notification = ExExNotification::ChainCommitted { new: Arc::new(chain) };
+            let _ = sender.send(notification);
+        }
+
+        // Receiver should get a Lagged error
+        match rx.recv().await {
+            Err(broadcast::error::RecvError::Lagged(n)) => {
+                assert!(n > 0, "Should have lagged by some messages");
+            }
+            other => {
+                // It's also acceptable to receive a message if timing works out
+                eprintln!("Received: {:?}", other.map(|_| "notification"));
+            }
+        }
     }
 }

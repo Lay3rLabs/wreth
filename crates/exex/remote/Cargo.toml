@@ -41,5 +41,23 @@ eyre.workspace = true
 [build-dependencies]
 tonic-build.workspace = true
 
+[dev-dependencies]
+# reth test utilities
+reth-exex-test-utils.workspace = true
+reth-exex-types = { workspace = true, features = ["serde", "serde-bincode-compat"] }
+reth-ethereum-primitives.workspace = true
+reth-execution-types.workspace = true
+reth-chainspec.workspace = true
+
+# testing
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+tokio-stream.workspace = true
+rand.workspace = true
+
+# serialization for tests
+bincode = "1"
+serde.workspace = true
+serde_with.workspace = true
+
 [features]
 default = []
