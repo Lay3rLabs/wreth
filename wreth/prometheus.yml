@@ -1,0 +1,25 @@
+# Prometheus Configuration for WRETH Local Development
+#
+# This configuration scrapes metrics from wreth and wavs services.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Scrape wreth metrics
+  - job_name: 'wreth'
+    static_configs:
+      - targets: ['wreth:9001']
+    metrics_path: /metrics
+
+  # Scrape wavs metrics
+  - job_name: 'wavs'
+    static_configs:
+      - targets: ['wavs:8000']
+    metrics_path: /metrics
+
+  # Scrape prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

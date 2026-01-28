@@ -1,0 +1,40 @@
+[package]
+name = "wreth"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Reth node with Remote ExEx gRPC server for WAVS integration"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "wreth"
+path = "src/main.rs"
+
+[dependencies]
+# reth
+reth-cli-util.workspace = true
+reth-ethereum-cli.workspace = true
+reth-exex-remote.workspace = true
+reth-node-ethereum.workspace = true
+reth-node-builder.workspace = true
+reth-tracing.workspace = true
+
+# async
+tokio = { workspace = true, features = ["full"] }
+
+# misc
+eyre.workspace = true
+clap = { workspace = true, features = ["derive"] }
+
+[features]
+default = ["jemalloc"]
+
+jemalloc = [
+    "reth-cli-util/jemalloc",
+    "reth-ethereum-cli/jemalloc",
+]

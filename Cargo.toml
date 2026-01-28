@@ -12,6 +12,7 @@ members = [
     "bin/reth-bench/",
     "bin/reth-bench-compare/",
     "bin/reth/",
+    "bin/wreth/",
     "crates/storage/rpc-provider/",
     "crates/chain-state/",
     "crates/chainspec/",

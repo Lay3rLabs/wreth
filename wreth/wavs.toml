@@ -1,0 +1,44 @@
+# WAVS Configuration for WRETH Local Development
+#
+# This configuration connects WAVS to the local wreth node via ExEx gRPC.
+
+# ----------------------------
+# Default settings (shared)
+# ----------------------------
+[default]
+log_level = ["info", "wavs=debug"]
+
+# Observability endpoints (connect to local stack)
+jaeger = "http://jaeger:4317"
+prometheus = "http://prometheus:9090"
+
+# EVM chain configuration for wreth dev node
+# The chain ID 1337 is the default for reth --dev mode
+[default.chains.evm.local-wreth]
+chain_id = 1337
+ws_endpoints = ["ws://wreth:8546"]
+http_endpoint = "http://wreth:8545"
+# ExEx gRPC endpoint - this is the key configuration for WRETH integration
+exex_endpoint = "http://wreth:10000"
+poll_interval_ms = 1000
+event_channel_size = 256
+
+# ----------------------------
+# WAVS specific settings
+# ----------------------------
+[wavs]
+cors_allowed_origins = [
+    "http://localhost:*",
+    "http://127.0.0.1:*",
+]
+
+port = 8000
+host = "0.0.0.0"
+data = "/var/wavs/data"
+
+# ----------------------------
+# CLI specific settings
+# ----------------------------
+[cli]
+data = "/var/wavs-cli"
+wavs_endpoint = "http://wavs:8000"

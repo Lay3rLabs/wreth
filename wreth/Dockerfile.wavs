@@ -1,0 +1,66 @@
+# WAVS Dockerfile with reth-exex feature enabled
+# This builds WAVS with support for the ExEx gRPC client
+#
+# Build context should be the repo root (wreth/) so that both
+# lib/WAVS and the reth crates are available.
+
+# Base image with common dependencies
+FROM rust:1.90-slim-bookworm AS base
+RUN apt-get update && apt-get install -y pkg-config libssl-dev ca-certificates curl protobuf-compiler && rm -rf /var/lib/apt/lists/*
+
+# Planner stage - prepare cargo-chef recipe
+FROM base AS planner
+WORKDIR /app
+RUN cargo install cargo-chef
+# Copy the entire repo (WAVS needs reth crates via path dependencies)
+COPY . .
+WORKDIR /app/lib/WAVS
+RUN cargo chef prepare --recipe-path recipe.json
+
+# Cacher stage - build dependencies
+FROM base AS cacher
+WORKDIR /app
+RUN cargo install cargo-chef
+# Copy the entire repo for path dependencies
+COPY . .
+COPY --from=planner /app/lib/WAVS/recipe.json /app/lib/WAVS/recipe.json
+WORKDIR /app/lib/WAVS
+# Build with reth-exex feature
+RUN cargo chef cook --release --features reth-exex --recipe-path recipe.json
+
+# Builder stage - compile the application
+FROM base AS builder
+WORKDIR /app
+# Copy the entire repo
+COPY . .
+# Copy cached dependencies from the WAVS target directory
+COPY --from=cacher /app/lib/WAVS/target /app/lib/WAVS/target
+COPY --from=cacher /usr/local/cargo /usr/local/cargo
+WORKDIR /app/lib/WAVS
+# Build with reth-exex feature
+RUN cargo build --release --features reth-exex
+
+### PRODUCTION
+
+# Pinned foundry version
+FROM --platform=linux/amd64 ghcr.io/foundry-rs/foundry:v0.3.0 AS foundry
+
+# Runtime image
+FROM debian:bookworm-slim
+WORKDIR /wavs
+
+RUN apt-get update && apt-get upgrade -y
+RUN apt install -y libcurl4 jq
+
+COPY --from=builder /app/lib/WAVS/target/release/wavs /usr/local/bin/wavs
+COPY --from=builder /app/lib/WAVS/wavs.toml /var/wavs/wavs.toml
+COPY --from=builder /app/lib/WAVS/target/release/wavs-cli /usr/local/bin/wavs-cli
+
+# copy foundry tools
+COPY --from=foundry /usr/local/bin/forge /usr/local/bin/forge
+COPY --from=foundry /usr/local/bin/cast /usr/local/bin/cast
+COPY --from=foundry /usr/local/bin/anvil /usr/local/bin/anvil
+COPY --from=foundry /usr/local/bin/chisel /usr/local/bin/chisel
+
+EXPOSE 8000
+CMD ["/usr/local/bin/wavs"]

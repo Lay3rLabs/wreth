@@ -25,3 +25,6 @@
 
 # include example files
 !/examples
+
+# include lib directory (for WAVS)
+!/lib

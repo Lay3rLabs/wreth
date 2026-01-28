@@ -298,6 +298,48 @@ ExEx endpoint configured but reth-exex feature not enabled
 ```
 - Rebuild WAVS with `--features reth-exex`
 
+## Running Locally
+
+A complete local development stack is available in the [`wreth/`](./wreth/) directory. This includes Docker Compose configuration for running wreth + WAVS + observability tools.
+
+### Quick Start (Docker)
+
+```bash
+cd wreth
+cp .env.example .env
+docker compose up -d
+docker compose logs -f
+```
+
+### Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| wreth | 8545, 8546, 10000 | Reth node with ExEx gRPC server |
+| wavs | 8000 | WAVS with ExEx client |
+| jaeger | 16686 | Distributed tracing UI |
+| prometheus | 9090 | Metrics dashboard |
+
+### Native Development
+
+```bash
+# Build wreth
+cargo build -p wreth --release
+
+# Run wreth with ExEx
+./target/release/wreth node --dev \
+  --http --http.addr 0.0.0.0 \
+  --ws --ws.addr 0.0.0.0 \
+  --exex.addr [::]:10000
+
+# Build and run WAVS (separate terminal)
+cd lib/WAVS
+cargo build -p wavs --features reth-exex --release
+./target/release/wavs
+```
+
+See [`wreth/README.md`](./wreth/README.md) for complete documentation.
+
 ## Future Improvements
 
 - [ ] Metrics for ExEx stream performance

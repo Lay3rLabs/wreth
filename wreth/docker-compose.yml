@@ -1,0 +1,92 @@
+# WRETH Local Development Stack
+#
+# This docker-compose file runs a complete local development environment with:
+# - wreth: Reth node with Remote ExEx gRPC server
+# - wavs: WAVS node with ExEx client (connects to wreth)
+# - jaeger: Distributed tracing UI
+# - prometheus: Metrics collection and monitoring
+#
+# Usage:
+#   cd wreth
+#   cp .env.example .env
+#   docker compose up -d
+#   docker compose logs -f
+#
+# To deploy a test service:
+#   docker compose exec wavs wavs-cli deploy-service --component /path/to/component.wasm
+#
+services:
+  # WRETH: Reth node with Remote ExEx gRPC server
+  wreth:
+    build:
+      context: ..
+      dockerfile: wreth/Dockerfile
+    container_name: wreth
+    ports:
+      - "8545:8545"     # HTTP RPC
+      - "8546:8546"     # WebSocket RPC
+      - "10000:10000"   # ExEx gRPC
+      - "30303:30303"   # P2P TCP
+      - "30303:30303/udp"  # P2P UDP
+      - "9001:9001"     # Metrics
+    volumes:
+      - wreth-data:/root/.local/share/reth
+    command:
+      - node
+      - --dev
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.api=eth,net,web3,debug,trace,txpool
+      - --ws
+      - --ws.addr=0.0.0.0
+      - --ws.api=eth,net,web3,debug,trace,txpool
+      - --exex.addr=[::]:10000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # WAVS: Web Assembly Verification Service with ExEx support
+  wavs:
+    build:
+      context: ..
+      dockerfile: wreth/Dockerfile.wavs
+    container_name: wavs
+    depends_on:
+      wreth:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./wavs.toml:/var/wavs/wavs.toml:ro
+      - wavs-data:/var/wavs/data
+    command: ["wavs"]
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/jaeger:2.5.0
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "4317:4317"     # OTLP gRPC
+      - "16686:16686"   # Jaeger UI
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:v3.3.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-otlp-receiver"
+
+volumes:
+  wreth-data:
+  wavs-data:
