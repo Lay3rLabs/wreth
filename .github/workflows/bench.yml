@@ -28,7 +28,7 @@ jobs:
             crates: "-p reth-trie"
     name: codspeed (${{ matrix.partition }}/${{ matrix.total_partitions }})
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: true
       - uses: rui314/setup-mold@v1
