@@ -27,7 +27,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@clippy
         with:
           components: clippy
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -50,7 +50,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: clippy
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -68,7 +68,7 @@ jobs:
         with:
           target: wasm32-wasip1
       - uses: taiki-e/install-action@cargo-hack
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -88,7 +88,7 @@ jobs:
         with:
           target: riscv32imac-unknown-none-elf
       - uses: taiki-e/install-action@cargo-hack
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -109,7 +109,7 @@ jobs:
       - uses: rui314/setup-mold@v1
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@cargo-hack
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -130,7 +130,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.88" # MSRV
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -146,7 +146,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: rui314/setup-mold@v1
       - uses: dtolnay/rust-toolchain@nightly
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -166,7 +166,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - name: Run fmt
         run: cargo fmt --all --check
 
@@ -178,7 +178,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: rui314/setup-mold@v1
       - uses: dtolnay/rust-toolchain@nightly
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -193,7 +193,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: rui314/setup-mold@v1
       - uses: dtolnay/rust-toolchain@nightly
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -252,7 +252,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: rui314/setup-mold@v1
       - uses: dtolnay/rust-toolchain@clippy
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -275,7 +275,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: rui314/setup-mold@v1
       - uses: taiki-e/cache-cargo-install-action@v3
         with:
