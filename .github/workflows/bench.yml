@@ -44,7 +44,7 @@ jobs:
       - name: Build the benchmark target(s)
         run: cargo codspeed build --profile profiling --features test-utils ${{ matrix.crates }}
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@v5
         with:
           run: cargo codspeed run ${{ matrix.crates }}
           mode: instrumentation
